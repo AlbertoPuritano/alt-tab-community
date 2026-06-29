@@ -1,39 +1,64 @@
 @available(macOS 26.0, *)
-class LiquidGlassEffectView: NSGlassEffectView, EffectView {
+class LiquidGlassEffectView: NSView, EffectView {
     private typealias SetVariantType = @convention(c) (AnyObject, Selector, Int) -> Void
     private static let setVariantSelector = NSSelectorFromString("set_variant:")
+    private static let glassClass: AnyClass? = NSClassFromString("NSGlassEffectView")
 
     private static let canUsePrivateLiquidGlassLookCached: Bool = {
-        let method = class_getInstanceMethod(object_getClass(NSGlassEffectView()), setVariantSelector)
-        return method != nil
+        guard let glassClass = glassClass else { return false }
+        return class_getInstanceMethod(glassClass, setVariantSelector) != nil
     }()
 
     static func canUsePrivateLiquidGlassLook() -> Bool { canUsePrivateLiquidGlassLookCached }
 
+    private let clear: Bool
+    private let innerView: NSView
+
     convenience init(_ clear: Bool) {
-        self.init()
-        if clear {
-            style = .clear
-            safeSetVariant(3)
+        if let glassType = Self.glassClass as? NSView.Type {
+            self.init(glassType.init(frame: .zero), clear)
         } else {
-            style = .regular
+            self.init(NSVisualEffectView(frame: .zero), clear)
         }
-        updateAppearance()
-        wantsLayer = true
-        // without this, there are weird shadows around the corners
-        layer!.masksToBounds = true
     }
 
+    init(_ innerView: NSView, _ clear: Bool) {
+        self.clear = clear
+        self.innerView = innerView
+        super.init(frame: .zero)
+        addSubview(innerView)
+        innerView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            innerView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            innerView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            innerView.topAnchor.constraint(equalTo: topAnchor),
+            innerView.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+        updateAppearance()
+        wantsLayer = true
+        layer?.masksToBounds = true
+        if clear { safeSetVariant(3) }
+    }
+
+    required init?(coder _: NSCoder) { nil }
+
     func safeSetVariant(_ value: Int) {
-        if let method = class_getInstanceMethod(object_getClass(self), LiquidGlassEffectView.setVariantSelector) {
+        if let method = class_getInstanceMethod(object_getClass(innerView), LiquidGlassEffectView.setVariantSelector) {
             let methodImplementation = method_getImplementation(method)
             let f = unsafeBitCast(methodImplementation, to: SetVariantType.self)
-            f(self, LiquidGlassEffectView.setVariantSelector, value)
+            f(innerView, LiquidGlassEffectView.setVariantSelector, value)
+        } else if innerView.responds(to: LiquidGlassEffectView.setVariantSelector) {
+            _ = innerView.perform(LiquidGlassEffectView.setVariantSelector, with: NSNumber(value: value))
         }
     }
 
     func updateAppearance() {
-        cornerRadius = Appearance.windowCornerRadius
+        if let visualEffectView = innerView as? NSVisualEffectView {
+            visualEffectView.blendingMode = .behindWindow
+            visualEffectView.state = .active
+            visualEffectView.material = clear ? .hudWindow : Appearance.material
+        }
+        layer?.cornerRadius = Appearance.windowCornerRadius
     }
 }
 

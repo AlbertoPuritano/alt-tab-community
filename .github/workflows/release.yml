@@ -26,6 +26,7 @@ jobs:
     timeout-minutes: 30
     env:
       APP_PATH: ${{ github.workspace }}/DerivedData/Build/Products/Debug/AltTab.app
+      BUILD_LOG: ${{ runner.temp }}/xcodebuild.log
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -59,7 +60,32 @@ jobs:
         run: scripts/codesign/setup_ci_pr.sh
 
       - name: Build Debug scheme
-        run: bash ai/build.sh
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project alt-tab-macos.xcodeproj \
+            -scheme Debug \
+            -configuration Debug \
+            -derivedDataPath DerivedData \
+            2>&1 | tee "$BUILD_LOG" | scripts/xcbeautify
+
+      - name: Summarize build failure
+        if: failure()
+        run: |
+          if [[ ! -f "$BUILD_LOG" ]]; then exit 0; fi
+          echo '### xcodebuild diagnostics' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -n -E '(^|[^[:alpha:]])(error|fatal error):|Command .* failed|BUILD FAILED|CodeSign|codesign|No signing certificate|Provisioning' "$BUILD_LOG" | tail -n 200 >> "$GITHUB_STEP_SUMMARY" || tail -n 200 "$BUILD_LOG" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload xcodebuild log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log-${{ steps.release.outputs.tag }}
+          path: ${{ env.BUILD_LOG }}
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Verify app bundle signature
         run: |
