@@ -40,6 +40,14 @@ extension NSControl {
     }
 }
 
+extension NSControl.ControlSize {
+    static var largestSearchFieldSize: Self {
+        if #available(macOS 26.0, *), let size = Self(rawValue: 4) { return size }
+        if #available(macOS 13.0, *) { return .large }
+        return .regular
+    }
+}
+
 extension CGImage {
     func resizedCopyWithCoreGraphics(_ newSize: NSSize, _ fixBitmapInfo: Bool) -> CGImage {
         let finalBitmapInfo = fixBitmapInfo
