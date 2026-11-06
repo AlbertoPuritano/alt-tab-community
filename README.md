@@ -1,7 +1,29 @@
-<div align="center">
+## Build instructions
 
-<a href="https://alt-tab.app/"><img src="docs/readme/main.svg" alt="AltTab — Find the right window. Keep your flow. See every window, even within the same app. Pick up where you left off. Download free for Mac." width="900"/></a>
+### Requirements
+- macOS
+- Xcode
 
-<a href="https://jb.gg/OpenSource"><img src="docs/readme/sponsor.svg" alt="Sponsored by JetBrains" width="900"/></a>
+No additional dependencies are required.
 
-</div>
+### Build
+
+Clone or download this repository, open Terminal in the project directory, and run:
+
+```bash
+./scripts/build-local.sh
+```
+
+When the build completes, the application will be located at:
+
+```text
+DerivedData/Build/Products/Debug/AltTab.app
+```
+
+Open it with:
+
+```bash
+open DerivedData/Build/Products/Debug/AltTab.app
+```
+
+On launch, an additional screen provides access to the unlimited Pro feature set.
